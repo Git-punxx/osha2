@@ -3,6 +3,60 @@ import app_config
 import controller as ctrl
 import sys
 
+class ProjectInput(wx.Dialog):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.controller = ctrl.ProjectController()
+
+        self.title_lbl = wx.StaticText(self, -1, 'Title:')
+        self.code_lbl = wx.StaticText(self, -1, 'Code:')
+        self.start_date_lbl = wx.StaticText(self, -1, 'Starting date:')
+        self.timetable_lbl = wx.StaticText(self, -1, 'Duration')
+
+        self.title_txt = wx.TextCtrl(self, -1, '', style = wx.TE_MULTILINE)
+        self.code_txt = wx.TextCtrl(self, -1, '')
+        self.start_date_txt = wx.TextCtrl(self, -1, '')
+        self.timetable_txt = wx.TextCtrl(self, -1, '')
+
+        self.ok = wx.Button(self, wx.ID_OK, "Save...")
+        self.cancel = wx.Button(self, wx.ID_CANCEL, "Cancel")
+
+        msizer = wx.GridBagSizer(hgap = 10, vgap = 10)
+        msizer.Add(self.title_txt, pos = (0, 1), span = (1, 20), border = 5, flag = wx.EXPAND)
+        msizer.Add(self.code_txt, pos = (1, 1), span = (1, 20), border = 5,flag = wx.EXPAND)
+        msizer.Add(self.start_date_txt, pos = (2, 1), span = (1, 20), border = 5,flag = wx.EXPAND)
+        msizer.Add(self.timetable_txt, pos = (3, 1), span = (1, 20), border = 5,flag = wx.EXPAND)
+
+
+        msizer.Add(self.title_lbl, pos = (0, 0), border = 5)
+        msizer.Add(self.code_lbl, pos = (1, 0), border = 5)
+        msizer.Add(self.start_date_lbl, pos = (2, 0), border = 5)
+        msizer.Add(self.timetable_lbl, pos = (3, 0), border = 5)
+
+        msizer.Add(self.ok, pos = (4, 0))
+        msizer.Add(self.cancel, pos = (4, 1))
+
+        self.Bind(wx.EVT_BUTTON, self.OnOk, self.ok)
+        self.Bind(wx.EVT_BUTTON, self.OnCancel, self.cancel)
+
+        self.SetSizer(msizer)
+        self.Fit()
+
+    def GetData(self):
+        data = [b.GetValue() for b in [self.title_txt, self.code_txt, self.start_date_txt, self.timetable_txt]]
+        return data
+
+    def OnOk(self, event):
+        data = self.GetData()
+        if data is None:
+            return
+        self.controller.add_project(*data)
+        self.Destroy()
+
+    def OnCancel(self, event):
+        self.Destroy()
+
+
 class ItemDetails(wx.Dialog):
     def __init__(self, parent, item_id, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
@@ -42,6 +96,7 @@ class ItemDetails(wx.Dialog):
 
         self.SetSizer(sizer)
         self.Fit()
+        self.SetSize((900, 600))
 
         self.Bind(wx.EVT_BUTTON, self.OnAdd, self.add)
         self.Bind(wx.EVT_BUTTON, self.OnRemove, self.remove)
@@ -70,6 +125,7 @@ class ItemListCtrl(wx.ListCtrl):
         self._setup()
 
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnActivate)
+
 
     def _setup(self):
         data = self.controller.fetch_all()
@@ -138,7 +194,7 @@ class ComposeDialog(wx.Dialog):
 
         sizer.Add(hsizer, 0)
         self.SetSizer(sizer)
-        self.Fit()
+        self.SetSize((800, 400))
 
     def OnActivate(self, event):
         res = int(event.GetItem().GetText())
@@ -146,7 +202,7 @@ class ComposeDialog(wx.Dialog):
         parent = self.GetParent()
         parent.Append(petep)
 
-class MainPanel(wx.Panel):
+class ItemPanel(wx.Panel):
     def __init__(self, parent, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.item_list = ItemListCtrl(self)
@@ -155,16 +211,59 @@ class MainPanel(wx.Panel):
         sizer.Add(self.item_list, 1, wx.EXPAND)
         self.SetSizer(sizer)
         self.Fit()
+        self.SetSize((900, 450))
+
+class MainMenu(wx.MenuBar):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+        self._create_menus()
+
+    def _create_menus(self):
+        file_menu = wx.Menu()
+        file_menu.Append(-1, 'Open')
+        project_menu = wx.Menu()
+
+        projects = wx.MenuItem(project_menu, -1, 'New Project')
+        project_menu.Append(projects)
+
+        item_menu = wx.Menu()
+        item_choice = wx.MenuItem(item_menu, -1, 'Manage Item List')
+        item_menu.Append(item_choice)
+
+
+        self.Append(item_menu, 'Items')
+        self.Append(project_menu, 'Manage Projects')
+
+        self.Bind(wx.EVT_MENU, self.OnNewProject, projects)
+        self.Bind(wx.EVT_MENU, self.OnItem, item_choice)
+
+    def OnNewProject(self, event):
+        dlg = ProjectInput(self)
+        res = dlg.ShowModal()
+        dlg.Destroy()
+
+    def OnItem(self, event):
+        dlg = ComposeDialog(self)
+        res = dlg.ShowModal()
+        dlg.Destroy()
+
+    def OnFile(self, event):
+        print('File choice')
+        sys.stdout.flush()
 
 class MainFrame(wx.Frame):
     def __init__(self, parent, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
-        self.panel = MainPanel(self)
+        self.panel = ItemPanel(self)
 
+        self.menu = MainMenu()
+        self.SetMenuBar(self.menu)
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.panel, 1, wx.EXPAND)
         self.SetSizer(sizer)
         self.Fit()
+        self.SetSize((1000, 500))
 
 class OshaApp(wx.App):
     def OnInit(self):
