@@ -20,12 +20,17 @@ class ProjectController(Controller):
         self.loader = domain.TableLoader(self.conn, 'project')
 
 
-    def add_project(self, title, code, start_date, timetable):
+    def add_project(self, title, code, start_date, timetable, contractor, subcontractor, in_progress):
         cursor = self.loader.cursor
         print(f'Inserting project {title} {code} in db')
-        row_id = cursor.execute('insert into project (title, code, start_date, timetable) values (?, ?, ?, ?)', (title, code, start_date, timetable))
+        row_id = cursor.execute('insert into project (title, code, start_date, timetable, contractor, subcontractor,'
+                                ' in_progress) values (?, ?, ?, ?, ?, ?, ?)', (title, code, start_date, timetable, contractor, subcontractor, in_progress))
         cursor.connection.commit()
         return row_id
+
+    def load_contractors(self):
+        cursor = self.loader.cursor
+        return [row for row in cursor.execute("select * from company")]
 
     def remove_project(self, project_id):
         cursor = self.loader.cursor

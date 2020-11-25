@@ -8,54 +8,72 @@ class ProjectInput(wx.Dialog):
         super().__init__(*args, **kwargs)
         self.controller = ctrl.ProjectController()
 
+        # Load the contractors from the DB and return a tuple with (index, name)
+        contractor_choices = [row[1] for row in self.controller.load_contractors()]
+        print(contractor_choices)
+
         self.title_lbl = wx.StaticText(self, -1, 'Title:')
         self.code_lbl = wx.StaticText(self, -1, 'Code:')
         self.start_date_lbl = wx.StaticText(self, -1, 'Starting date:')
         self.timetable_lbl = wx.StaticText(self, -1, 'Duration')
+        self.contractor_lbl = wx.StaticText(self, -1, 'Contractor')
+        self.subcontractor_lbl = wx.StaticText(self, -1, 'Subcontractor')
 
         self.title_txt = wx.TextCtrl(self, -1, '', style = wx.TE_MULTILINE)
         self.code_txt = wx.TextCtrl(self, -1, '')
         self.start_date_txt = wx.TextCtrl(self, -1, '')
         self.timetable_txt = wx.TextCtrl(self, -1, '')
 
+        self.contractor_lst = wx.Choice(self, -1, choices = contractor_choices)
+        self.subcontractor_lst = wx.Choice(self, -1, choices = contractor_choices)
+        self.in_progress_tck = wx.CheckBox(self, -1, 'In Progress')
+
         self.ok = wx.Button(self, wx.ID_OK, "Save...")
         self.cancel = wx.Button(self, wx.ID_CANCEL, "Cancel")
 
         msizer = wx.GridBagSizer(hgap = 10, vgap = 10)
-        msizer.Add(self.title_txt, pos = (0, 1), span = (1, 20), border = 5, flag = wx.EXPAND)
-        msizer.Add(self.code_txt, pos = (1, 1), span = (1, 20), border = 5,flag = wx.EXPAND)
-        msizer.Add(self.start_date_txt, pos = (2, 1), span = (1, 20), border = 5,flag = wx.EXPAND)
-        msizer.Add(self.timetable_txt, pos = (3, 1), span = (1, 20), border = 5,flag = wx.EXPAND)
+        msizer.Add(self.title_txt, pos = (0, 1), span = (1, 10), border = 5, flag = wx.EXPAND)
+        msizer.Add(self.code_txt, pos = (1, 1), span = (1, 2), border = 5,flag = wx.EXPAND)
+        msizer.Add(self.start_date_txt, pos = (2, 1), span = (1, 2), border = 5,flag = wx.EXPAND)
+        msizer.Add(self.timetable_txt, pos = (3, 1), span = (1, 2), border = 5,flag = wx.EXPAND)
+        msizer.Add(self.contractor_lst, pos= (4, 1), span = (1, 2))
+        msizer.Add(self.subcontractor_lst, pos= (5, 1), span = (1, 2))
+        msizer.Add(self.in_progress_tck, pos = (6, 1), span = (1, 2))
 
 
-        msizer.Add(self.title_lbl, pos = (0, 0), border = 5)
-        msizer.Add(self.code_lbl, pos = (1, 0), border = 5)
-        msizer.Add(self.start_date_lbl, pos = (2, 0), border = 5)
-        msizer.Add(self.timetable_lbl, pos = (3, 0), border = 5)
+        msizer.Add(self.title_lbl, pos = (0, 0), flag = wx.ALL | wx.EXPAND, border = 5)
+        msizer.Add(self.code_lbl, pos = (1, 0),  flag = wx.ALL | wx.EXPAND, border = 5)
+        msizer.Add(self.start_date_lbl, pos = (2, 0),  flag = wx.ALL | wx.EXPAND, border = 5)
+        msizer.Add(self.timetable_lbl, pos = (3, 0),  flag = wx.ALL | wx.EXPAND, border = 5)
+        msizer.Add(self.contractor_lbl, pos = (4, 0),  flag = wx.ALL | wx.EXPAND, border = 5)
+        msizer.Add(self.subcontractor_lbl, pos = (5, 0),  flag = wx.ALL | wx.EXPAND, border = 5)
 
-        msizer.Add(self.ok, pos = (4, 0))
-        msizer.Add(self.cancel, pos = (4, 1))
+        msizer.Add(self.ok, pos = (7, 0))
+        msizer.Add(self.cancel, pos = (7, 1))
 
         self.Bind(wx.EVT_BUTTON, self.OnOk, self.ok)
         self.Bind(wx.EVT_BUTTON, self.OnCancel, self.cancel)
 
+        self.SetMinSize((600, 400))
         self.SetSizer(msizer)
         self.Fit()
 
     def GetData(self):
-        data = [b.GetValue() for b in [self.title_txt, self.code_txt, self.start_date_txt, self.timetable_txt]]
-        return data
+        text_data = [b.GetValue() for b in [self.title_txt, self.code_txt, self.start_date_txt, self.timetable_txt]]
+        choice_data = [choice.GetString(choice.GetSelection()) for choice in [self.contractor_lst, self.subcontractor_lst]]
+        tick_data = [int(self.in_progress_tck.GetValue())]
+        return text_data + choice_data + tick_data
 
     def OnOk(self, event):
         data = self.GetData()
         if data is None:
             return
+        print(data)
         self.controller.add_project(*data)
         self.Destroy()
 
     def OnCancel(self, event):
         self.Destroy()
-
 
 class ItemDetails(wx.Dialog):
     def __init__(self, parent, item_id, *args, **kwargs):
@@ -117,6 +135,35 @@ class ItemDetails(wx.Dialog):
         petep_id = data[0]
         self.petep_list.Append(data)
         self.controller.add_petep(self.item_id, petep_id)
+
+class ProjectListCtrl(wx.ListCtrl):
+    def __init__(self, parent):
+        super().__init__(parent, style = wx.LC_REPORT)
+        self.controller = ctrl.ProjectController()
+        self._setup()
+
+        self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnActivate)
+
+    def _setup(self):
+        data = self.controller.fetch_all()
+        cols = self.controller.columns()
+        for index, title in enumerate(cols):
+            self.InsertColumn(index, title)
+        self.PopulateList(data)
+        for index in range(len(cols)):
+            self.SetColumnWidth(index, wx.LIST_AUTOSIZE)
+
+
+    def PopulateList(self, data):
+        for row in data:
+            self.Append(row)
+
+
+    def OnActivate(self, event):
+        item = event.GetItem()
+        item_id = int(item.GetText())
+        print(item_id)
+        sys.stdout.flush()
 
 class ItemListCtrl(wx.ListCtrl):
     def __init__(self, parent):
@@ -213,6 +260,17 @@ class ItemPanel(wx.Panel):
         self.Fit()
         self.SetSize((900, 450))
 
+class ProjectPanel(wx.Panel):
+    def __init__(self, parent, *args, **kwargs):
+        super().__init__(parent, *args, **kwargs)
+        self.item_list = ProjectListCtrl(self)
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(self.item_list, 1, wx.EXPAND)
+        self.SetSizer(sizer)
+        self.Fit()
+        self.SetSize((900, 450))
+
 class MainMenu(wx.MenuBar):
     def __init__(self, *args, **kwargs):
         super().__init__()
@@ -255,7 +313,7 @@ class MainMenu(wx.MenuBar):
 class MainFrame(wx.Frame):
     def __init__(self, parent, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
-        self.panel = ItemPanel(self)
+        self.panel = ProjectPanel(self)
 
         self.menu = MainMenu()
         self.SetMenuBar(self.menu)
