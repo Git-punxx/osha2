@@ -2,6 +2,21 @@ import sqlite3
 import app_config
 
 connection = None
+mapper_registry = {}
+
+def get_mapper(cls):
+    global mapper_registry
+    return mapper_registry[cls.__name__]
+
+def assign_mapper(mapper):
+    def deco(func):
+        global mapper_registry
+        mapper_registry[mapper] = func 
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        return wrapper
+    return deco
+
 
 class ItemCompositor:
     def __init__(self, item_id):
@@ -12,6 +27,26 @@ class ItemCompositor:
 
     def remove(self, petep_id):
         self.petep_list.remove(petep_id)
+
+
+class Composite:
+    def __init__(self):
+        self.children = []
+    
+    def get_children(self):
+        return iter(self.children)
+    
+    def load(self):
+        raise NotImplementedError
+
+class HazardType(Composite):
+    def __init__(self):
+        super().__init__()
+    
+    @assign_mapper('HazardType')
+    def load(self):
+        mapper = get_mapper(self.__class__)
+        self.children.extend(mapper.fetch())
 
 class  Loader:
     def __init__(self, connection):
@@ -44,7 +79,4 @@ def connect():
 
 
 if __name__ == '__main__':
-    with sqlite3.connect(app_config.DBNAME) as conn:
-        p = TableLoader(conn, 'petep')
-        r = p.load_all()
-        print(p.columns())
+    t = HazardType()

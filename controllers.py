@@ -37,8 +37,8 @@ class PersonnelController(Controller):
         super().__init__(driver)
 
     def load_all(self):
-        cur = self.driver._execute_command(f'select * from {self.tablename}')
-        return cur.fetchall()
+        self.driver._execute_command(f'select * from {self.tablename}')
+        return self.driver.cursor.fetchall()
 
 def project_controller(dbname):
     driver= sql.SqliteDriver(dbname)
@@ -50,5 +50,5 @@ def personnel_controller(dbname):
 
 
 if __name__ == '__main__':
-    ctrl = sql_controller(app_config.DB_MOH)
+    ctrl = project_controller(app_config.DB_MOH)
     project = ('Some title', 'some code', 'some start date', 'some duration', 'contractor', 'subcontractor', 'it is in progress')

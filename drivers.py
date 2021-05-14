@@ -56,10 +56,9 @@ class SqliteDriver(Driver):
     def _execute_command(self, command, values = None, rows = None):
         try:
             self.cursor.execute(command, values)
-            return self.cursor
+            self.connection.commit()
         except sqlite3.Error as e:
             print(f'Error {e}')
-        self.connection.commit()
 
 if __name__ == '__main__':
     d = SqliteDriver(app_config.DB_MOH)
